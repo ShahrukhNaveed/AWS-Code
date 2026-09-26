@@ -1,0 +1,19 @@
+apiVersion : apps/v1
+kind: Deployment
+metadata:
+  name: sweetcontainer 
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sweetcontainer
+  template:
+    metadata:
+      labels:
+        app: sweetcontainer 
+    spec:
+      containers:
+        - name: sweetcontainer 
+          image: awscodeacr123.azurecr.io/sweetcontainer
+          ports:
+          - containerPort: 80
