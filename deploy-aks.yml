@@ -1,0 +1,53 @@
+name: Build and Deploy to AKS
+ 
+on:
+  push:
+    branches:
+      - main
+ 
+env:
+  ACR_NAME: awscodeacr123          # <-- apni ACR ka naam yahan daalein
+  RESOURCE_GROUP: test-terraform
+  CLUSTER_NAME: test-terraform
+  IMAGE_NAME: aws-code
+ 
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+ 
+    steps:
+      - name: Repo checkout karo
+        uses: actions/checkout@v4
+ 
+      - name: Azure mein login karo
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+ 
+      - name: ACR mein login karo
+        run: az acr login --name ${{ env.ACR_NAME }}
+ 
+      - name: Docker image build karo
+        run: |
+          docker build -t ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} .
+ 
+      - name: Docker image ACR mein push karo
+        run: |
+          docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+ 
+      - name: AKS credentials set karo
+        uses: azure/aks-set-context@v4
+        with:
+          resource-group: ${{ env.RESOURCE_GROUP }}
+          cluster-name: ${{ env.CLUSTER_NAME }}
+ 
+      - name: Manifest mein naya image tag daalo
+        run: |
+          sed -i "s|IMAGE_PLACEHOLDER|${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}|g" k8s/deployment.yaml
+ 
+      - name: Kubernetes pe deploy karo
+        run: |
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+          kubectl rollout status deployment/aws-code-deployment
+ 
